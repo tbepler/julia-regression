@@ -1,7 +1,7 @@
 include("center.jl")
 include("cross_validation.jl")
 
-function ridge( X, y, lambda::eltype(X) )
+function ridge( X::Array{Any,2}, y, lambda::eltype(X) )
 
     colmeans_X = center!( X )
     mean_y = center!( y )
@@ -18,7 +18,7 @@ function ridge( X, y, lambda::eltype(X) )
 
 end
 
-function ridge( X, y, ls::Array{eltype(X),1}, gen = Kfold( size(X,1), 5 ) )
+function ridge( X::Array{Any,2}, y, ls::Array{eltype(X),1}, gen = Kfold( size(X,1), 5 ) )
     if Base.length( ls ) == 1
         return ridge( X, y, ls[1] )
     end
@@ -77,7 +77,7 @@ function predictKernel( w, bias, K )
     return broadcast( +, K*w, bias )
 end
 
-function ridge_kernel( X, y, lambda::eltype(X), kernel )
+function ridge( kernel::Function, X, y, lambda::eltype(X) )
 
     m = size( x, 1 )
     K = Array( eltype(y), m, m )
@@ -94,7 +94,7 @@ function ridge_kernel( X, y, lambda::eltype(X), kernel )
 
 end
 
-function ridge_kernel( X, y, ls::Array{eltype(X),1}, kernel,
+function ridge( kernel::Function, X, y, ls::Array{eltype(X),1},
         gen = Kfold( size(X,1), 5 ) )
     
     if Base.length( ls ) == 1
