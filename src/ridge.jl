@@ -1,7 +1,8 @@
 include("center.jl")
 include("cross_validation.jl")
+include("mse.jl")
 
-function ridge( X::Array{Any,2}, y, lambda )
+function ridge( X::Array{Any,2}, y, lambda::Number )
 
     colmeans_X = center!( X )
     mean_y = center!( y )
@@ -18,7 +19,7 @@ function ridge( X::Array{Any,2}, y, lambda )
 
 end
 
-function ridge( X::Array{Any,2}, y, ls::Array{Any,1}, gen = Kfold( size(X,1), 5 ) )
+function ridge( X::Array{Any,2}, y, ls, gen = Kfold( size(X,1), 5 ) )
     if Base.length( ls ) == 1
         return ridge( X, y, ls[1] )
     end
@@ -26,9 +27,8 @@ function ridge( X::Array{Any,2}, y, ls::Array{Any,1}, gen = Kfold( size(X,1), 5 
     for i in 1:size(ls,1)
         l = ls[i]
         train_f(is) = ridge( X[is,:], y[is,:], l )
-        error_f(model,is) = sum(
-            (predict( model, X[is,:] ) - y[is,:]).^2, 1 )[1]
-        l_errs[i] = mean( cross_validate( train_f, error_f, gen ), 1 )[1]
+        error_f(model,is) = mse( predict( model, X[is,:] ), y[is,:] )
+        l_errs[i] = mean( cross_validate( train_f, error_f, gen ) )
     end
     l = ls[ indmin( l_errs ) ]
     return ridge( X, y, l ), l, l_errs
@@ -77,9 +77,9 @@ function predictKernel( w, bias, K )
     return broadcast( +, K*w, bias )
 end
 
-function ridge( kernel::Function, X, y, lambda )
+function ridge( kernel::Function, X, y, lambda::Number )
 
-    m = size( x, 1 )
+    m = size( X, 1 )
     K = Array( eltype(y), m, m )
     for i = 1:m
         for j = i:m
@@ -94,8 +94,7 @@ function ridge( kernel::Function, X, y, lambda )
 
 end
 
-function ridge( kernel::Function, X, y, ls::Array{Any,1},
-        gen = Kfold( size(X,1), 5 ) )
+function ridge( kernel::Function, X, y, ls, gen = Kfold( size(X,1), 5 ) )
     
     if Base.length( ls ) == 1
         return ridge( X, y, ls[1], kernel )
@@ -118,10 +117,10 @@ function ridge( kernel::Function, X, y, ls::Array{Any,1},
         function error_f(v,is)
             model, train_is = v
             yh = predictKernel( model..., K[is,train_is] )
-            return sum( (yh - y[is,:]).^2, 1 )[1]
+            return mse( yh, y[is,:] )
         end
 
-        l_errs[i] = mean( cross_validate( train_f, error_f, gen ), 1 )[1]
+        l_errs[i] = mean( cross_validate( train_f, error_f, gen ) )
     end
     l = ls[ indmin( l_errs ) ]
     w,bias = ridgeKernel!( K, y, l )
