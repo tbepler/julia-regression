@@ -2,13 +2,17 @@ include("center.jl")
 include("cross_validation.jl")
 include("mse.jl")
 
-function ridge( X::Array{Any,2}, y, lambda::Number )
+function ridge( X, y, lambda::Number )
 
     colmeans_X = center!( X )
     mean_y = center!( y )
 
-    A = X'*X + diagm( fill( lambda, size(X,2) ) )
-    w = A\(X'*y)
+    #A = X'*X + diagm( fill( lambda, size(X,2) ) )
+    #w = A\(X'*y)
+
+    A = [ X ; fill( sqrt( lambda ), ( 1, size(X,2) ) ) ]
+    B = [ y ; fill( 0, ( 1, size(y,2) ) ) ]
+    w = A\B
 
     broadcast!( +, X, X, colmeans_X )
     broadcast!( +, y, y, mean_y )
@@ -19,7 +23,7 @@ function ridge( X::Array{Any,2}, y, lambda::Number )
 
 end
 
-function ridge( X::Array{Any,2}, y, ls, gen = Kfold( size(X,1), 5 ) )
+function ridge( X, y, ls, gen = Kfold( size(X,1), 5 ) )
     if Base.length( ls ) == 1
         return ridge( X, y, ls[1] )
     end
@@ -44,10 +48,13 @@ function ridgeKernel( K, y, lambda )
     colmeans_K = center!( K )
     mean_y = center!( y )
     
-    K += diagm( fill( lambda, m ) )
+    for i = 1:m
+        K[i,i] += lambda
+    end
     w = K \ y
-
-    K -= diagm( fill( lambda, m ) )
+    for i = 1:m
+        K[i,i] -= lambda
+    end
     
     broadcast!( +, y, y, mean_y )
     broadcast!( +, K, K, colmeans_K )
@@ -62,8 +69,10 @@ function ridgeKernel!( K, y, lambda )
 
     colmeans_K = center!( K )
     mean_y = center!( y )
-    
-    K += diagm( fill( lambda, m ) )
+   
+    for i = 1:m
+        K[i,i] += lambda
+    end
     w = K \ y
     
     broadcast!( +, y, y, mean_y )
